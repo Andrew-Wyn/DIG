@@ -4,17 +4,10 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 model, tokenizer = None, None
 
-def nn_init(device, dataset, returns=False):
+def nn_init(device, model_path, returns=False):
 	global model, tokenizer
-	if dataset == 'sst2':
-		tokenizer	= AutoTokenizer.from_pretrained('textattack/bert-base-uncased-SST-2')
-		model		= AutoModelForSequenceClassification.from_pretrained('textattack/bert-base-uncased-SST-2', return_dict=False)
-	elif dataset == 'imdb':
-		tokenizer	= AutoTokenizer.from_pretrained('textattack/bert-base-uncased-imdb')
-		model		= AutoModelForSequenceClassification.from_pretrained('textattack/bert-base-uncased-imdb', return_dict=False)
-	elif dataset == 'rotten':
-		tokenizer	= AutoTokenizer.from_pretrained('textattack/bert-base-uncased-rotten-tomatoes')
-		model		= AutoModelForSequenceClassification.from_pretrained('textattack/bert-base-uncased-rotten-tomatoes', return_dict=False)
+	tokenizer	= AutoTokenizer.from_pretrained(model_path)
+	model		= AutoModelForSequenceClassification.from_pretrained(model_path, return_dict=False)
 
 	model.to(device)
 	model.eval()
