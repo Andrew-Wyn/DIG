@@ -9,8 +9,10 @@ def main(args):
 
 	if args.model == "bert":
 		from bert_helper import nn_init, get_word_embeddings
-	else:
+	elif args.model == "roberta":
 		from roberta_helper import nn_init, get_word_embeddings
+	else:
+		raise Exception("Not implemented error !!!")
 
 	print(f'Starting KNN computation...')
 
@@ -28,8 +30,8 @@ def main(args):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='knn')
-	parser.add_argument('-modelname', type=str)
-	parser.add_argument('-model', type=str)
+	parser.add_argument('-modelname', default="xlm-roberta-base", type=str)
+	parser.add_argument('-model', default="roberta", type=str)
 	parser.add_argument('-procs',	default=12, type=int)
 	parser.add_argument('-nbrs',  	default=500, type=int)
 
