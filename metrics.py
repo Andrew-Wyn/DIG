@@ -2,15 +2,30 @@ import numpy as np, pickle
 import torch
 
 
-def eval_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
+def eval_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
 	logits_original						= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	predicted_label						= torch.argmax(logits_original).item()
 	prob_original						= torch.softmax(logits_original, dim=0)
 	topk_indices						= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
 	local_input_embed					= input_embed.detach().clone()
-	local_input_embed[0][topk_indices]	= base_token_emb
+	local_input_embed[0][topk_indices]	= mask_token_emb
 	logits_perturbed					= forward_fn(local_input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	prob_perturbed						= torch.softmax(logits_perturbed, dim=0)
+
+	return (torch.log(prob_perturbed[predicted_label]) - torch.log(prob_original[predicted_label])).item(), predicted_label
+
+
+# TODO: CHECK IT !
+def eval_anti_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
+	logits_original									= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
+	predicted_label									= torch.argmax(logits_original).item()
+	prob_original									= torch.softmax(logits_original, dim=0)
+	topk_indices									= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
+	complement_topk_indices							= np.setdiff1d(range(attr.shape[0]), topk_indices)
+	local_input_embed								= input_embed.detach().clone()
+	local_input_embed[0][complement_topk_indices]	= mask_token_emb
+	logits_perturbed								= forward_fn(local_input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
+	prob_perturbed									= torch.softmax(logits_perturbed, dim=0)
 
 	return (torch.log(prob_perturbed[predicted_label]) - torch.log(prob_original[predicted_label])).item(), predicted_label
 
