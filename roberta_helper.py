@@ -33,8 +33,8 @@ def nn_forward_func(input_embed, attention_mask=None, position_embed=None, type_
 	else:
 		return pred.max(1).values
 
-def load_mappings(dataset, knn_nbrs=500):
-	with open(f'processed/knns/roberta_{dataset}_{knn_nbrs}.pkl', 'rb') as f:
+def load_mappings(knn_nbrs=500):
+	with open(f'processed/knns/roberta_{knn_nbrs}.pkl', 'rb') as f:
 		[word_idx_map, word_features, adj] = pickle.load(f)
 	word_idx_map	= dict(word_idx_map)
 

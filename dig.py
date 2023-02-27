@@ -10,7 +10,7 @@ from captum._utils.typing import (BaselineType, Literal, TargetType, TensorOrTup
 from captum.attr._utils.approximation_methods import approximation_parameters
 from captum.attr._utils.attribution import GradientAttribution
 from captum.attr._utils.batching import _batch_attribution
-from captum.attr._utils.common import _format_input_baseline, _reshape_and_sum, _validate_input, _format_input
+from captum.attr._utils.common import _format_input, _reshape_and_sum, _validate_input
 
 
 class DiscretetizedIntegratedGradients(GradientAttribution):

@@ -1,3 +1,4 @@
+import os
 import sys, numpy as np, argparse, random
 sys.path.append('../')
 
@@ -11,6 +12,13 @@ from metrics import eval_log_odds, eval_comprehensiveness, eval_sufficiency, eva
 import monotonic_paths
 
 all_outputs = []
+
+# TODO: capire perche se non setto cache_dir in AutoTokenizer
+# non usa come cache la directory specificata
+CACHE_DIR = f"{os.getcwd()}/.hf_cache/"
+# change Transformer cache variable
+os.environ['TRANSFORMERS_CACHE'] = CACHE_DIR
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens):
@@ -47,13 +55,13 @@ def main(args):
 	else:
 		raise Exception("Not implemented error !!!")
 
-	auxiliary_data = load_mappings(args.dataset, knn_nbrs=args.knn_nbrs)
+	auxiliary_data = load_mappings(knn_nbrs=args.knn_nbrs)
 
 	# Fix the gpu to use
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 	# init model and tokenizer in cpu first
-	nn_init(device, args.dataset)
+	nn_init(device, args.modelname)
 
 	# Define the Attribution function
 	attr_func = DiscretetizedIntegratedGradients(nn_forward_func)

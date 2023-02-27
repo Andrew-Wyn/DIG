@@ -33,8 +33,8 @@ def nn_forward_func(input_embed, attention_mask=None, position_embed=None, type_
 	else:
 		return pred.max(1).values
 
-def load_mappings(dataset, knn_nbrs=500):
-	with open(f'processed/knns/bert_{dataset}_{knn_nbrs}.pkl', 'rb') as f:
+def load_mappings(knn_nbrs=500):
+	with open(f'processed/knns/bert_{knn_nbrs}.pkl', 'rb') as f:
 		[word_idx_map, word_features, adj] = pickle.load(f)
 	word_idx_map	= dict(word_idx_map)
 
@@ -89,9 +89,9 @@ def construct_sub_embedding(model, input_ids, ref_input_ids, position_ids, ref_p
 			(input_position_embeddings, ref_input_position_embeddings), \
 			(input_type_embeddings, ref_input_type_embeddings)
 
-def get_base_token_emb(device):
+def get_mask_token_emb(device):
 	global model
-	return construct_word_embedding(model, torch.tensor([tokenizer.pad_token_id], device=device))
+	return construct_word_embedding(model, torch.tensor([tokenizer.mask_token_id], device=device))
 
 def get_tokens(text_ids):
 	global tokenizer
