@@ -1,5 +1,6 @@
 import os
 import torch
+import argparse
 
 from transformers import (
     AutoConfig,
@@ -34,8 +35,9 @@ class TaskVector():
         else:
             assert pretrained_checkpoint is not None and finetuned_checkpoint is not None
             with torch.no_grad():
-                pretrained_state_dict = self._load_from_hf(pretrained_checkpoint) # the pretrained is taken from hf
+                pretrained_state_dict = torch.load(pretrained_checkpoint)
                 finetuned_state_dict = torch.load(finetuned_checkpoint)
+
                 self.vector = {}
                 for key in pretrained_state_dict:
                     if pretrained_state_dict[key].dtype in [torch.int64, torch.uint8]:
@@ -70,7 +72,6 @@ class TaskVector():
         """Apply a task vector to a pretrained model."""
         with torch.no_grad():
             pretrained_model = torch.load(pretrained_checkpoint)
-            new_state_dict = {}
             pretrained_state_dict = pretrained_model
             for key in pretrained_state_dict:
                 if key not in self.vector:
@@ -92,50 +93,35 @@ class TaskVector():
 
         return model
     
-    def _load_from_hf(self, model):
-        model_weights = dict()
-
-        for module_ in model.named_modules():
-            pass
-
-        return model_weights
-
 if __name__ == "__main__":
-    pass
+    parser = argparse.ArgumentParser(description='taskVector')
+    parser.add_argument('-hfsst2model', type=str)
+    parser.add_argument('-pretrainedmodel',  type=str) # specify the .bin file inside hf_cache dir
+    parser.add_argument('-finetunedmodelmeco',  type=str) # specify the .bin file inside finetuned dir
+    parser.add_argument('-finetunedmodelsst2', type=str)
 
-    """
-    
-        1) Take MECO Finetuned Model (EN ALL) and generate task vector v2
-        2) Add v2 to SST2 Finetuned Model
-        3) Save resulting model in .bin format
+    args = parser.parse_args()
 
-    pretrained_checkpoint = 
+    task_vector_meco = TaskVector(args.pretrainedmodel, args.finetunedmodelmeco)
 
-    task_vector = TaskVector(pretrained_checkpoint, pretrained_checkpoint)
+    sst2_meco_model = task_vector_meco.apply_to(args.finetunedmodelsst2)
 
-    pretrained_checkpoint = "finetuning/notpretraining/finetuning_dir_it_all_notpretraining/model-prajjwal1/bert-tiny-finetuned-randomized-full/pytorch_model.bin"
-    task_vector = TaskVector(pretrained_checkpoint, pretrained_checkpoint)
+    config = AutoConfig.from_pretrained(args.hfsst2model)
 
-    print(task_vector.vector.keys())
+    torch.save(sst2_meco_model, "tv_tmp.bin")
 
-    a = task_vector.apply_to(pretrained_checkpoint)
+    model = AutoModelForSequenceClassification.from_pretrained("tv_tmp.bin", config=config)
 
-    #print(a)
+    print(model)
 
-    new_model_weights = task_vector.vector
-
-    model = AutoModelForSequenceClassification.from_pretrained("prajjwal1/bert-tiny", cache_dir=CACHE_DIR)
-
-
+    print("SEE THE WEIGHTS...")
 
     for module_ in model.named_modules():
         try:
             print(module_[0])
             print(module_[1].weight.data)
             print(module_[1].bias.data)
-            print()
         except AttributeError as e:
             print(e)
 
-    print(model)
-    """
+    model.save_pretrained("sst2_meco_model")
