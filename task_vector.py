@@ -35,12 +35,12 @@ class TaskVector():
         else:
             assert pretrained_checkpoint is not None and finetuned_checkpoint is not None
             with torch.no_grad():
-                pretrained_state_dict = torch.load(pretrained_checkpoint)
-                finetuned_state_dict = torch.load(finetuned_checkpoint)
+                pretrained_state_dict = torch.load(pretrained_checkpoint, map_location=torch.device('cpu'))
+                finetuned_state_dict = torch.load(finetuned_checkpoint, map_location=torch.device('cpu'))
 
                 self.vector = {}
                 for key in pretrained_state_dict:
-                    if pretrained_state_dict[key].dtype in [torch.int64, torch.uint8]:
+                    if pretrained_state_dict[key].dtype in [torch.int64, torch.uint8] or not key in finetuned_state_dict:
                         continue
                     self.vector[key] = finetuned_state_dict[key] - pretrained_state_dict[key]
     
@@ -71,7 +71,7 @@ class TaskVector():
     def apply_to(self, pretrained_checkpoint, scaling_coef=1.0):
         """Apply a task vector to a pretrained model."""
         with torch.no_grad():
-            pretrained_model = torch.load(pretrained_checkpoint)
+            pretrained_model = torch.load(pretrained_checkpoint, map_location=torch.device('cpu'))
             pretrained_state_dict = pretrained_model
             for key in pretrained_state_dict:
                 if key not in self.vector:
