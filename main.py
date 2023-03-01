@@ -1,6 +1,7 @@
 import os
 import sys, numpy as np, argparse, random
 sys.path.append('../')
+from random import shuffle
 
 from tqdm import tqdm
 
@@ -18,7 +19,7 @@ all_outputs = []
 CACHE_DIR = f"{os.getcwd()}/.hf_cache/"
 # change Transformer cache variable
 os.environ['TRANSFORMERS_CACHE'] = CACHE_DIR
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens):
@@ -58,7 +59,7 @@ def main(args):
 	auxiliary_data = load_mappings(knn_nbrs=args.knn_nbrs)
 
 	# Fix the gpu to use
-	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+	device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 	# init model and tokenizer in cpu first
 	nn_init(device, args.modelname)
@@ -70,6 +71,8 @@ def main(args):
 	dataset	= load_dataset('sst2')['test']
 	data	= list(zip(dataset['sentence'], dataset['label'], dataset['idx']))
 
+	data = shuffle(data)
+
 	# get ref token embedding
 	mask_token_emb = get_mask_token_emb(device)
 
@@ -78,7 +81,7 @@ def main(args):
 	inputs = []
 	log_odds, anti_log_odds, comps, suffs, count = 0, 0, 0, 0, 0
 	print_step = 2
-	for row in tqdm(data):
+	for row in tqdm(data[:365]):
 		inp = get_inputs(row[0], device)
 		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
