@@ -1,4 +1,5 @@
 import os
+import json
 import sys, numpy as np, argparse, random
 sys.path.append('../')
 from random import shuffle
@@ -100,17 +101,24 @@ def main(args):
 
 	print('Log-odds: ', np.round(log_odds / count, 4), 'Anti-Log-odds: ', np.round(anti_log_odds / count, 4), 'Comprehensiveness: ', np.round(comps / count, 4), 'Sufficiency: ', np.round(suffs / count, 4))
 
+	if not os.path.exists(args.output_dir):
+		os.makedirs(args.output_dir)
+
+	with open(f"{args.output_dir}/xai_metrics.json", 'w') as f:
+		json.dump({"log_odds" : np.round(log_odds / count, 4), "anti_log_odds" : np.round(anti_log_odds / count, 4), "comprehensiveness" : np.round(comps / count, 4), "sufficiency" : np.round(suffs / count, 4)}, f)
+
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='IG Path')
-	parser.add_argument('-modelname', default="xlm-roberta-base", type=str)
-	parser.add_argument('-model', default="roberta", type=str)
+	parser.add_argument('-modelname', 	default="xlm-roberta-base", type=str)
+	parser.add_argument('-model', 		default="roberta", type=str)
 	parser.add_argument('-strategy', 	default='greedy', 		choices=['greedy', 'maxcount'], help='The algorithm to find the next anchor point')
 	parser.add_argument('-steps', 		default=30, type=int)	# m
 	parser.add_argument('-topk', 		default=20, type=int)	# k
 	parser.add_argument('-factor', 		default=0, 	type=int)	# f
 	parser.add_argument('-knn_nbrs',	default=500, type=int)	# KNN
 	parser.add_argument('-seed', 		default=42, type=int)
+	parser.add_argument('-output_dir', 	type=str)
 
 	args = parser.parse_args()
 
