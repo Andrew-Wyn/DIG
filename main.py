@@ -71,7 +71,7 @@ def main(args):
 	dataset	= load_dataset('sst2')['test']
 	data	= list(zip(dataset['sentence'], dataset['label'], dataset['idx']))
 
-	data = shuffle(data)
+	shuffle(data)
 
 	# get ref token embedding
 	mask_token_emb = get_mask_token_emb(device)
@@ -81,7 +81,7 @@ def main(args):
 	inputs = []
 	log_odds, anti_log_odds, comps, suffs, count = 0, 0, 0, 0, 0
 	print_step = 2
-	for row in tqdm(data[:365]):
+	for row in tqdm(data[:600]):
 		inp = get_inputs(row[0], device)
 		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\

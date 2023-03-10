@@ -6,7 +6,7 @@ model, tokenizer = None, None
 
 def nn_init(device, model_path, returns=False):
 	global model, tokenizer
-	tokenizer	= AutoTokenizer.from_pretrained(model_path)
+	tokenizer	= AutoTokenizer.from_pretrained("xlm-roberta-base")
 	model		= AutoModelForSequenceClassification.from_pretrained(model_path, return_dict=False)
 
 	model.to(device)
