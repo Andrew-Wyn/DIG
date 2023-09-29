@@ -23,7 +23,9 @@ def main(args):
 	word_idx_map		= tokenizer.get_vocab()
 	A					= kneighbors_graph(word_features, args.nbrs, mode='distance', n_jobs=args.procs)
 
-	knn_fname = f'processed/knns/{args.finetuningtype}_{args.modeltype}_{args.runname}_{args.nbrs}.pkl'
+	# knn_fname = f'processed/knns/{args.finetuningtype}_{args.modeltype}_{args.runname}_{args.nbrs}.pkl'
+
+	knn_fname = 'processed/knns/knn.pkl'
 	with open(knn_fname, 'wb') as f:
 		pickle.dump([word_idx_map, word_features, A], f)
 
