@@ -13,6 +13,9 @@ from attributions import run_dig_explanation
 from metrics import eval_log_odds, eval_comprehensiveness, eval_sufficiency, eval_anti_log_odds
 import monotonic_paths
 
+# ROBERTA | XLM_ROBERTA | GILBERTO(CAMEMBERT) are all roberta implementation
+from roberta_helper import nn_init, load_mappings, nn_forward_func, get_mask_token_emb, get_inputs, get_tokens
+
 all_outputs = []
 
 # TODO: capire perche se non setto cache_dir in AutoTokenizer
@@ -49,15 +52,7 @@ def main(args):
 	np.random.seed(args.seed)
 	torch.manual_seed(args.seed)
 
-	# neural network specific imports
-	if args.model == "bert":
-		from bert_helper import nn_init, load_mappings, nn_forward_func, get_mask_token_emb, get_inputs, get_tokens
-	elif args.model == "roberta":
-		from roberta_helper import nn_init, load_mappings, nn_forward_func, get_mask_token_emb, get_inputs, get_tokens
-	else:
-		raise Exception("Not implemented error !!!")
-
-	auxiliary_data = load_mappings(knn_nbrs=args.knn_nbrs)
+	auxiliary_data = load_mappings(model_type=model_type, knn_nbrs=args.knn_nbrs)
 
 	# Fix the gpu to use
 	device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

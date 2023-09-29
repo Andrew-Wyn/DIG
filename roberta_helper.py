@@ -6,7 +6,7 @@ model, tokenizer = None, None
 
 def nn_init(device, model_path, returns=False):
 	global model, tokenizer
-	tokenizer	= AutoTokenizer.from_pretrained("xlm-roberta-base")
+	tokenizer	= AutoTokenizer.from_pretrained(model_path)
 	model		= AutoModelForSequenceClassification.from_pretrained(model_path, return_dict=False)
 
 	model.to(device)
@@ -33,8 +33,8 @@ def nn_forward_func(input_embed, attention_mask=None, position_embed=None, type_
 	else:
 		return pred.max(1).values
 
-def load_mappings(knn_nbrs=500):
-	with open(f'processed/knns/roberta_{knn_nbrs}.pkl', 'rb') as f:
+def load_mappings(model_type, knn_nbrs=500):
+	with open(f'processed/knns/{model_type}_{knn_nbrs}.pkl', 'rb') as f:
 		[word_idx_map, word_features, adj] = pickle.load(f)
 	word_idx_map	= dict(word_idx_map)
 
