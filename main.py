@@ -3,14 +3,18 @@ import json
 import sys, numpy as np, argparse, random
 sys.path.append('../')
 from random import shuffle
+from collections import defaultdict
 
 from tqdm import tqdm
 
+import pandas as pd
+
 import torch
 from datasets import load_dataset
+from datasets import Dataset
 from dig import DiscretetizedIntegratedGradients
 from attributions import run_dig_explanation
-from metrics import eval_log_odds, eval_comprehensiveness, eval_sufficiency, eval_anti_log_odds
+from metrics import eval_log_odds, eval_comprehensiveness, eval_sufficiency, eval_anti_log_odds, regression_eval_log_odds, regression_eval_comprehensiveness, regression_eval_anti_log_odds, regression_eval_sufficiency
 import monotonic_paths
 
 # ROBERTA | XLM_ROBERTA | GILBERTO(CAMEMBERT) are all roberta implementation
@@ -26,7 +30,7 @@ os.environ['TRANSFORMERS_CACHE'] = CACHE_DIR
 DEVICE = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens):
+def classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens):
 	# computes the attributions for given input
 
 	# move inputs to main device
@@ -45,6 +49,88 @@ def calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_f
 	return log_odd, anti_log_odd, comp, suff
 
 
+def regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens):
+	# computes the attributions for given input
+
+	# move inputs to main device
+	inp = [x.to(device) if x is not None else None for x in inputs]
+
+	# compute attribution
+	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
+	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
+
+	# compute metrics
+	log_odd			= regression_eval_log_odds(nn_forward_func, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	anti_log_odd 	= regression_eval_anti_log_odds(nn_forward_func, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	comp			= regression_eval_comprehensiveness(nn_forward_func, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	suff			= regression_eval_sufficiency(nn_forward_func, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+
+	return log_odd, anti_log_odd, comp, suff
+
+
+def read_complexity_dataset(path=None):
+    data = []
+
+    df = pd.read_csv(path)
+
+    for _, row in df.iterrows():
+        
+        num_individuals = 20
+
+        text = row["SENTENCE"]
+
+        label = 0
+
+        for i in range(num_individuals):
+            label += int(row[f"judgement{i+1}"])
+
+        label = label/num_individuals
+
+        data.append({
+            "text": text,
+            "label": label
+        })
+
+
+    return Dataset.from_list(data)
+
+
+def sentiment_ita_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+
+	"""		
+	log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens)
+	
+	xai_metrics["log_odd"] += log_odd
+	xai_metrics["anti_log_odd"] += anti_log_odd
+	xai_metrics["comp"] += comp
+	xai_metrics["suff"] += suff
+	"""
+
+	# TODO: IMPLEMENT COLLECTING THE SCORES FOR EACH SUB_TASK (POS | NEG)
+
+	pass
+
+
+def sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+
+		log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens)
+		
+		xai_metrics["log_odd"] += log_odd
+		xai_metrics["anti_log_odd"] += anti_log_odd
+		xai_metrics["comp"] += comp
+		xai_metrics["suff"] += suff
+
+
+def complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+
+		log_odd, anti_log_odd, comp, suff = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens)
+		
+		xai_metrics["reg_log_odd"] += log_odd
+		xai_metrics["reg_anti_log_odd"] += anti_log_odd
+		xai_metrics["reg_comp"] += comp
+		xai_metrics["reg_suff"] += suff
+
+
 def main(args):
 
 	# set seed
@@ -52,7 +138,7 @@ def main(args):
 	np.random.seed(args.seed)
 	torch.manual_seed(args.seed)
 
-	auxiliary_data = load_mappings(model_type=model_type, knn_nbrs=args.knn_nbrs)
+	auxiliary_data = load_mappings(args.task, args.modeltype, args.runtype, knn_nbrs=args.knn_nbrs)
 
 	# Fix the gpu to use
 	device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -63,9 +149,16 @@ def main(args):
 	# Define the Attribution function
 	attr_func = DiscretetizedIntegratedGradients(nn_forward_func)
 
-	# load the dataset
-	dataset	= load_dataset('sst2')['test']
-	data	= list(zip(dataset['sentence'], dataset['label'], dataset['idx']))
+	if args.dataset is None:
+		# load the dataset
+		dataset	= load_dataset('sst2')['test']
+		data	= list(zip(dataset['sentence'], dataset['label'], dataset['idx']))
+	else:
+		if args.task == "complexity":
+			dataset = read_complexity_dataset(args.dataset)
+			data = list(zip(dataset["text"], dataset["labels"]))
+		else: # TODO: add italian sentiment analysis loading
+			pass
 
 	shuffle(data)
 
@@ -75,39 +168,48 @@ def main(args):
 	# compute the DIG attributions for all the inputs
 	print('Starting attribution computation...')
 	inputs = []
-	log_odds, anti_log_odds, comps, suffs, count = 0, 0, 0, 0, 0
-	print_step = 2
+
+	xai_metrics = defaultdict(lambda: 0)
+
+	print_step = 10
+
 	for row in tqdm(data[:600]):
 		inp = get_inputs(row[0], device)
 		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
 											device, auxiliary_data, steps=args.steps, factor=args.factor, strategy=args.strategy)
 		inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask]
-		log_odd, anti_log_odd, comp, suff		= calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens)
-		log_odds		+= log_odd
-		anti_log_odds	+= anti_log_odd
-		comps			+= comp
-		suffs 			+= suff
-		count			+= 1
+
+		if args.task == "complexity": # call regression metrics
+			complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+		elif args.task == "sentiment_en": # call classification metrics
+			sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+		elif args.task == "sentiment_it": # call classification metrics twice one for each sub-task
+			pass
+
+		count += 1
 
 		# print the metrics
 		if count % print_step == 0:
-			print('Log-odds: ', np.round(log_odds / count, 4), 'Anti-Log-odds: ', np.round(anti_log_odds / count, 4), 'Comprehensiveness: ', np.round(comps / count, 4), 'Sufficiency: ', np.round(suffs / count, 4))
+			print(xai_metrics)
 
-	print('Log-odds: ', np.round(log_odds / count, 4), 'Anti-Log-odds: ', np.round(anti_log_odds / count, 4), 'Comprehensiveness: ', np.round(comps / count, 4), 'Sufficiency: ', np.round(suffs / count, 4))
+	print(xai_metrics)
 
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
 
 	with open(f"{args.output_dir}/xai_metrics.json", 'w') as f:
-		json.dump({"log_odds" : np.round(log_odds / count, 4), "anti_log_odds" : np.round(anti_log_odds / count, 4), "comprehensiveness" : np.round(comps / count, 4), "sufficiency" : np.round(suffs / count, 4)}, f)
+		json.dump(xai_metrics, f)
 
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='IG Path')
 	parser.add_argument('-modelname', 	default="xlm-roberta-base", type=str)
-	parser.add_argument('-model', 		default="roberta", type=str)
-	parser.add_argument('-strategy', 	default='greedy', 		choices=['greedy', 'maxcount'], help='The algorithm to find the next anchor point')
+	parser.add_argument('-modeltype', 	default="roberta", type=str)
+	parser.add_argument('-task', 		default="complexity", type=str)
+	parser.add_argument('-runtype', 	default="hf_np", type=str)
+	parser.add_argument('-dataset', 	default=None, type=str)
+	parser.add_argument('-strategy', 	default='greedy', choices=['greedy', 'maxcount'], help='The algorithm to find the next anchor point')
 	parser.add_argument('-steps', 		default=30, type=int)	# m
 	parser.add_argument('-topk', 		default=20, type=int)	# k
 	parser.add_argument('-factor', 		default=0, 	type=int)	# f
