@@ -34,8 +34,8 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='knn')
 	parser.add_argument('-modelname', default="roberta-base", type=str)
 	parser.add_argument('-modeltype', default="roberta", type=str)
-	parser.add_argument('-finetuningtype', default='comp_en', tyep=str)
-	parser.add_argument('-runname', defaul='p_nf', type=str) # not-pretrained | pretrained | not-pretrained-not-finetuntuned | not-pretrained-finetuned ...
+	parser.add_argument('-finetuningtype', default='comp_en', type=str)
+	parser.add_argument('-runname', default='p_nf', type=str) # not-pretrained-not-finetuntuned | not-pretrained-finetuned ...
 	parser.add_argument('-procs',	default=12, type=int)
 	parser.add_argument('-nbrs',  	default=500, type=int)
 
