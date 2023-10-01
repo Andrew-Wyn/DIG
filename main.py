@@ -156,7 +156,7 @@ def main(args):
 	else:
 		if args.task == "complexity":
 			dataset = read_complexity_dataset(args.dataset)
-			data = list(zip(dataset["text"], dataset["labels"]))
+			data = list(zip(dataset["text"], dataset["label"]))
 		else: # TODO: add italian sentiment analysis loading
 			pass
 
@@ -170,6 +170,8 @@ def main(args):
 	inputs = []
 
 	xai_metrics = defaultdict(lambda: 0)
+
+	count=0
 
 	print_step = 10
 
