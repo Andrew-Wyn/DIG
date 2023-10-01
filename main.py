@@ -131,6 +131,15 @@ def complexity_calculate_attributions(inputs, device, args, attr_func, mask_toke
 		xai_metrics["reg_suff"] += suff
 
 
+def average_mertrics(metrics, iterations):
+	averaged_metrics = {}
+
+	for k, v in metrics.items():
+		averaged_metrics[k] = v/iterations
+
+	return averaged_metrics
+
+
 def main(args):
 
 	# set seed
@@ -174,8 +183,9 @@ def main(args):
 	count=0
 
 	print_step = 10
+	max_iterations = 200
 
-	for row in tqdm(data[:600]):
+	for i, row in tqdm(enumerate(data[:max_iterations])):
 		inp = get_inputs(row[0], device)
 		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
@@ -193,15 +203,15 @@ def main(args):
 
 		# print the metrics
 		if count % print_step == 0:
-			print(xai_metrics)
+			print(average_mertrics(xai_metrics, i))
 
-	print(xai_metrics)
+	print(average_mertrics(xai_metrics, max_iterations))
 
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
 
 	with open(f"{args.output_dir}/xai_metrics.json", 'w') as f:
-		json.dump(xai_metrics, f)
+		json.dump(average_mertrics(xai_metrics, max_iterations), f)
 
 
 if __name__ == '__main__':
