@@ -100,7 +100,7 @@ def get_tokens(text_ids):
 
 def get_inputs(text, device):
 	global model, tokenizer
-	ref_token_id = tokenizer.pad_token_id
+	ref_token_id = tokenizer.mask_token_id # tokenizer.pad_token_id # DIG MODIFICATION: mask instead pad token
 	sep_token_id = tokenizer.sep_token_id
 	cls_token_id = tokenizer.cls_token_id
 

@@ -1,4 +1,4 @@
-import os, sys, numpy as np, pickle, argparse
+import os, pickle, argparse
 from sklearn.neighbors import kneighbors_graph
 
 import torch
@@ -14,17 +14,23 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main(args):
+	"""
+		Compute the KNN graph for the tokens embedding space
+	"""
+
 	device = torch.device("cpu")
 
 	print(f'Starting KNN computation...')
 
+	# Initiliaze the tokenizer
 	_, tokenizer		= nn_init(device, args.modelname, returns=True)
+
 	word_features		= get_word_embeddings().cpu().detach().numpy()
 	word_idx_map		= tokenizer.get_vocab()
+	# Compute the (weighted) graph of k-Neighbors for points in word_features -> the single token's ids.
 	A					= kneighbors_graph(word_features, args.nbrs, mode='distance', n_jobs=args.procs)
 
 	# knn_fname = f'processed/knns/{args.finetuningtype}_{args.modeltype}_{args.runname}_{args.nbrs}.pkl'
-
 	knn_fname = 'processed/knns/knn.pkl'
 	with open(knn_fname, 'wb') as f:
 		pickle.dump([word_idx_map, word_features, A], f)

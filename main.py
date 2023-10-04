@@ -147,6 +147,7 @@ def main(args):
 	np.random.seed(args.seed)
 	torch.manual_seed(args.seed)
 
+	# Load the token's embeddings KNN graph
 	auxiliary_data = load_mappings(args.task, args.modeltype, args.runtype, knn_nbrs=args.knn_nbrs)
 
 	# Fix the gpu to use
@@ -169,19 +170,22 @@ def main(args):
 		else: # TODO: add italian sentiment analysis loading
 			pass
 
+	# shuffle the data 
 	shuffle(data)
 
 	# get ref token embedding
+	# DIG MODIFICATION: usage of MASK token instead of PAD as base.
 	mask_token_emb = get_mask_token_emb(device)
 
 	# compute the DIG attributions for all the inputs
 	print('Starting attribution computation...')
 	inputs = []
 
+	# dictionary where the metrics will be saved
 	xai_metrics = defaultdict(lambda: 0)
 
+	# iteration stuffs
 	count=0
-
 	print_step = 10
 	max_iterations = 200
 
@@ -216,11 +220,11 @@ def main(args):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='IG Path')
-	parser.add_argument('-modelname', 	default="xlm-roberta-base", type=str)
-	parser.add_argument('-modeltype', 	default="roberta", type=str)
-	parser.add_argument('-task', 		default="complexity", type=str)
-	parser.add_argument('-runtype', 	default="hf_np", type=str)
-	parser.add_argument('-dataset', 	default=None, type=str)
+	parser.add_argument('-modelname', 	default="xlm-roberta-base", type=str) # path or hf ref of the used model
+	parser.add_argument('-modeltype', 	default="roberta", type=str) # type of the model: roberta | camem| xlm
+	parser.add_argument('-task', 		default="complexity", type=str) # taks over which perform DIG computation: complexity | sst2 | sentiment_it
+	parser.add_argument('-runtype', 	default="hf_np", type=str) # type of model over which compute the DIG
+	parser.add_argument('-dataset', 	default=None, type=str) # dataset used, if None SST2 will be used
 	parser.add_argument('-strategy', 	default='greedy', choices=['greedy', 'maxcount'], help='The algorithm to find the next anchor point')
 	parser.add_argument('-steps', 		default=30, type=int)	# m
 	parser.add_argument('-topk', 		default=20, type=int)	# k
