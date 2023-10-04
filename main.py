@@ -198,7 +198,7 @@ def main(args):
 
 		if args.task == "complexity": # call regression metrics
 			complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
-		elif args.task == "sentiment_en": # call classification metrics
+		elif args.task == "sst2": # call classification metrics
 			sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "sentiment_it": # call classification metrics twice one for each sub-task
 			pass
