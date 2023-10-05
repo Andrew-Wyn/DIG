@@ -35,9 +35,9 @@ def classification_calculate_attributions(inputs, device, args, attr_func, mask_
 
 	# move inputs to main device
 	inp = [x.to(device) if x is not None else None for x in inputs]
+	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 
 	# compute attribution
-	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
@@ -54,9 +54,9 @@ def regression_calculate_attributions(inputs, device, args, attr_func, mask_toke
 
 	# move inputs to main device
 	inp = [x.to(device) if x is not None else None for x in inputs]
+	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 
 	# compute attribution
-	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
@@ -190,10 +190,14 @@ def main(args):
 	max_iterations = 200
 
 	for i, row in tqdm(enumerate(data[:max_iterations])):
+		# augment the input with contour informations needed by DIG attribution score
 		inp = get_inputs(row[0], device)
 		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
+
+		# generates the paths required by DIG
 		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
 											device, auxiliary_data, steps=args.steps, factor=args.factor, strategy=args.strategy)
+		
 		inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask]
 
 		if args.task == "complexity": # call regression metrics

@@ -99,6 +99,13 @@ def get_tokens(text_ids):
 	return tokenizer.convert_ids_to_tokens(text_ids.squeeze())
 
 def get_inputs(text, device):
+	"""
+		Augment the input with sep token and cls token.
+		Return pairs of ids, one for the original sentence other for the sentence with word substituted with ref token (MASK)
+		input_ids, position_ids, type_ids.
+		And their embeddings.
+	"""
+	
 	global model, tokenizer
 	ref_token_id = tokenizer.mask_token_id # tokenizer.pad_token_id # DIG MODIFICATION: mask instead pad token
 	sep_token_id = tokenizer.sep_token_id
