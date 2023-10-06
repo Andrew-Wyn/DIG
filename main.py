@@ -35,7 +35,7 @@ def classification_calculate_attributions(inputs, device, args, attr_func, mask_
 
 	# move inputs to main device
 	inp = [x.to(device) if x is not None else None for x in inputs]
-	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
+	scaled_features, _, _, input_embed, _, position_embed, _, type_embed, _, attention_mask = inp
 
 	# compute attribution
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
@@ -54,7 +54,7 @@ def regression_calculate_attributions(inputs, device, args, attr_func, mask_toke
 
 	# move inputs to main device
 	inp = [x.to(device) if x is not None else None for x in inputs]
-	scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
+	scaled_features, _, _, input_embed, _, position_embed, _, type_embed, _, attention_mask = inp
 
 	# compute attribution
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
@@ -141,7 +141,6 @@ def average_mertrics(metrics, iterations):
 
 
 def main(args):
-
 	# set seed
 	random.seed(args.seed)
 	np.random.seed(args.seed)

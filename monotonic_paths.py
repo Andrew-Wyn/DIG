@@ -1,3 +1,5 @@
+# This script contains the utilities for the paths computation
+
 import numpy as np, math, pickle, sys
 sys.path.append('../')
 from collections import defaultdict as ddict

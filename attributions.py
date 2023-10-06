@@ -1,5 +1,4 @@
 import torch
-from dig import DiscretetizedIntegratedGradients
 
 def summarize_attributions(attributions):
 	attributions = attributions.sum(dim=-1).squeeze(0)
