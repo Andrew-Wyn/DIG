@@ -121,6 +121,16 @@ def sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb,
 		xai_metrics["suff"] += suff
 
 
+def complexity_binary_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+	
+	log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens)
+		
+	xai_metrics["log_odd"] += log_odd
+	xai_metrics["anti_log_odd"] += anti_log_odd
+	xai_metrics["comp"] += comp
+	xai_metrics["suff"] += suff
+
+
 def complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 
 		log_odd, anti_log_odd, comp, suff = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens)
@@ -163,9 +173,9 @@ def main(args):
 		dataset	= load_dataset('sst2')['test']
 		data	= list(zip(dataset['sentence'], dataset['label'], dataset['idx']))
 	else:
-		if args.task == "complexity":
+		if args.task == "complexity" or args.task == "complexity_binary":
 			dataset = read_complexity_dataset(args.dataset)
-			data = list(zip(dataset["text"], dataset["label"]))
+			data = list(zip(dataset["text"],))
 		else: # TODO: add italian sentiment analysis loading
 			pass
 
@@ -201,6 +211,8 @@ def main(args):
 
 		if args.task == "complexity": # call regression metrics
 			complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+		elif args.task == "complexity_binary": # call classification metrics
+			complexity_binary_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "sst2": # call classification metrics
 			sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "sentiment_it": # call classification metrics twice one for each sub-task
