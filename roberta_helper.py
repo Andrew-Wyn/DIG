@@ -6,14 +6,17 @@ model, tokenizer = None, None
 
 def nn_init(device, model_path, task, returns=False):
 	global model, tokenizer
-	tokenizer	= AutoTokenizer.from_pretrained(model_path)
+	
 	
 	if task == "sentipolc":
 		if "xlm" in model_path:
+			tokenizer	= AutoTokenizer.from_pretrained("idb-ita/gilberto-uncased-from-camembert")
 			model = XLMRobertaForMultiTaskSequenceClassification.from_pretrained(model_path, return_dict=False)
 		else:
+			tokenizer	= AutoTokenizer.from_pretrained("xlm-roberta-base")
 			model = CamembertForMultiTaskSequenceClassification.from_pretrained(model_path, return_dict=False)
 	else:
+		tokenizer	= AutoTokenizer.from_pretrained(model_path)
 		model = AutoModelForSequenceClassification.from_pretrained(model_path, return_dict=False)
 	
 	model.to(device)
