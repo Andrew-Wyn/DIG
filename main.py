@@ -114,7 +114,7 @@ def create_dataset_from_faulty_csv(src_path):
     return Dataset.from_dict(dataset_dict)
 
 
-def sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+def sst2_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 		# Define the Attribution function
 		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
 				return nn_forward_func(predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
@@ -128,7 +128,7 @@ def sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb,
 		xai_metrics["suff"] += suff
 
 
-def complexity_binary_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+def complexity_binary_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 	# Define the Attribution function
 	def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
 			return nn_forward_func(predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
@@ -211,7 +211,7 @@ def main(args):
 	device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 	# init model and tokenizer in cpu first
-	nn_init(device, args.modelname)
+	nn_init(device, args.modelname, args.task)
 
 	if args.dataset is None:
 		# load the dataset
