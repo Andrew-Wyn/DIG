@@ -115,6 +115,10 @@ def create_dataset_from_faulty_csv(src_path):
 
 
 def sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+		# Define the Attribution function
+		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+				return nn_forward_func(predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
+		attr_func = DiscretetizedIntegratedGradients(ff)
 
 		log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens)
 		
@@ -125,6 +129,11 @@ def sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb,
 
 
 def complexity_binary_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+	# Define the Attribution function
+	def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+			return nn_forward_func(predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
+	attr_func = DiscretetizedIntegratedGradients(ff)
+
 	
 	log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens)
 		
@@ -134,7 +143,12 @@ def complexity_binary_calculate_attributions(inputs, device, args, attr_func, ma
 	xai_metrics["suff"] += suff
 
 
-def complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+def complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+		# Define the Attribution function
+		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+				return nn_forward_func(predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
+		attr_func = DiscretetizedIntegratedGradients(ff)
+
 
 		log_odd, anti_log_odd, comp, suff = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens)
 		
@@ -143,15 +157,26 @@ def complexity_calculate_attributions(inputs, device, args, attr_func, mask_toke
 		xai_metrics["reg_comp"] += comp
 		xai_metrics["reg_suff"] += suff
 	
-def sentpolc_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+def sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 		
 		def pos_predict(model, inputs_embeds, attention_mask=None):
 			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["pos"]
-		
-		def neg_predict(model, inputs_embeds, attention_mask=None):
-			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["neg"]
+
+		# Define the Attribution function
+		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+				return nn_forward_func(pos_predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
+		attr_func = DiscretetizedIntegratedGradients(ff)
 
 		log_odd_pos, anti_log_odd_pos, comp_pos, suff_pos = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, pos_predict, get_tokens)
+
+		def neg_predict(model, inputs_embeds, attention_mask=None):
+			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["neg"]
+		
+		# Define the Attribution function
+		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+				return nn_forward_func(neg_predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False)
+		attr_func = DiscretetizedIntegratedGradients(ff)
+
 		log_odd_neg, anti_log_odd_neg, comp_neg, suff_neg = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, neg_predict, get_tokens)
 		
 		xai_metrics["log_odd_pos"] += log_odd_pos
@@ -187,9 +212,6 @@ def main(args):
 
 	# init model and tokenizer in cpu first
 	nn_init(device, args.modelname)
-
-	# Define the Attribution function
-	attr_func = DiscretetizedIntegratedGradients(nn_forward_func)
 
 	if args.dataset is None:
 		# load the dataset
@@ -234,13 +256,13 @@ def main(args):
 		inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask]
 
 		if args.task == "complexity": # call regression metrics
-			complexity_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+			complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "complexity_binary": # call classification metrics
-			complexity_binary_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+			complexity_binary_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "sst2": # call classification metrics
-			sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+			sst2_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "sentipolc": # call classification metrics twice one for each sub-task
-			sentpolc_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+			sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 
 		count += 1
 
