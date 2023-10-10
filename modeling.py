@@ -128,11 +128,6 @@ class CamembertForMultiTaskSequenceClassification(CamembertPreTrainedModel):
         loss_fct = CrossEntropyLoss()
         for task in self.tasks:
             logits[task] = self.classifiers[task](sequence_output)
-            if labels[task] is not None:
-                task_loss = loss_fct(logits[task].view(-1, 2), labels[task].view(-1))
-                tasks_losses[task] = task_loss if task not in tasks_losses else tasks_losses[task] + task_loss
-                loss = task_loss if loss is None else loss+task_loss
-        loss /= len(self.tasks)
 
         
         return MultiTaskSequenceClassifierOutput(
@@ -201,11 +196,6 @@ class XLMRobertaForMultiTaskSequenceClassification(XLMRobertaPreTrainedModel):
         loss_fct = CrossEntropyLoss()
         for task in self.tasks:
             logits[task] = self.classifiers[task](sequence_output)
-            if labels[task] is not None:
-                task_loss = loss_fct(logits[task].view(-1, 2), labels[task].view(-1))
-                tasks_losses[task] = task_loss if task not in tasks_losses else tasks_losses[task]+task_loss
-                loss = task_loss if loss is None else loss+task_loss
-        loss /= len(self.tasks)
 
         
         return MultiTaskSequenceClassifierOutput(
