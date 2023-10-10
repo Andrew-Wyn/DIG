@@ -22,9 +22,10 @@ from torch.nn import CrossEntropyLoss
 import torch.utils.checkpoint
 from torch import nn
 from transformers.models.camembert.modeling_camembert import CamembertClassificationHead
+from transformers.models.xlm_roberta.modeling_xlm_roberta import XLMRobertaClassificationHead
 from transformers.utils import logging, ModelOutput
 
-from transformers import CamembertPreTrainedModel, CamembertModel
+from transformers import CamembertPreTrainedModel, CamembertModel, XLMRobertaPreTrainedModel, XLMRobertaModel
 
 
 _CHECKPOINT_FOR_DOC = "camembert-base"
