@@ -4,6 +4,7 @@ import sys, numpy as np, argparse, random
 sys.path.append('../')
 from random import shuffle
 from collections import defaultdict
+import csv
 
 from tqdm import tqdm
 
@@ -95,6 +96,24 @@ def read_complexity_dataset(path=None):
     return Dataset.from_list(data)
 
 
+def create_dataset_from_faulty_csv(src_path):
+    dataset_dict = {'text': [], 'label_pos': [], 'label_neg': []}
+    with open(src_path) as src_file:
+        csv_reader = csv.reader(src_file, delimiter=',', quotechar='"')
+        print('')
+        for row in csv_reader:
+            if row[0] == 'idtwitter':
+                continue
+            if len(row) != 9:
+                cut_row = row[:9]
+                cut_row[8] += ',' + ', '.join(row[9:])
+                row = cut_row
+            dataset_dict['text'].append(row[8])
+            dataset_dict['label_pos'].append(int(row[2]))
+            dataset_dict['label_neg'].append(int(row[3]))
+    return Dataset.from_dict(dataset_dict)
+
+
 def sentiment_ita_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 
 	"""		
@@ -139,6 +158,23 @@ def complexity_calculate_attributions(inputs, device, args, attr_func, mask_toke
 		xai_metrics["reg_anti_log_odd"] += anti_log_odd
 		xai_metrics["reg_comp"] += comp
 		xai_metrics["reg_suff"] += suff
+	
+def sentpolc_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
+		
+		pos_forward = lambda **args: nn_forward_func(**args)["pos"]
+		neg_forward = lambda **args: nn_forward_func(**args)["neg"]
+
+		log_odd_pos, anti_log_odd_pos, comp_pos, suff_pos = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, pos_forward, get_tokens)
+		log_odd_neg, anti_log_odd_neg, comp_neg, suff_neg = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, neg_forward, get_tokens)
+		
+		xai_metrics["log_odd_pos"] += log_odd_pos
+		xai_metrics["anti_log_odd_pos"] += anti_log_odd_pos
+		xai_metrics["comp_pos"] += comp_pos
+		xai_metrics["suff_pos"] += suff_pos
+		xai_metrics["log_odd_neg"] += log_odd_neg
+		xai_metrics["anti_log_odd_neg"] += anti_log_odd_neg
+		xai_metrics["comp_neg"] += comp_neg
+		xai_metrics["suff_neg"] += suff_neg
 
 
 def average_mertrics(metrics, iterations):
@@ -176,8 +212,9 @@ def main(args):
 		if args.task == "complexity" or args.task == "complexity_binary":
 			dataset = read_complexity_dataset(args.dataset)
 			data = list(zip(dataset["text"],))
-		else: # TODO: add italian sentiment analysis loading
-			pass
+		elif args.task == "sentipolc": # TODO: add italian sentiment analysis loading
+			dataset = create_dataset_from_faulty_csv(args.dataset)
+			data = list(zip(dataset["text"],))
 
 	# shuffle the data 
 	shuffle(data)
@@ -215,8 +252,8 @@ def main(args):
 			complexity_binary_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 		elif args.task == "sst2": # call classification metrics
 			sst2_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
-		elif args.task == "sentiment_it": # call classification metrics twice one for each sub-task
-			pass
+		elif args.task == "sentipolc": # call classification metrics twice one for each sub-task
+			sentpolc_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
 
 		count += 1
 

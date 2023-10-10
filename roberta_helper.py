@@ -1,14 +1,21 @@
 import torch, sys, pickle
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
+from modeling import XLMRobertaForMultiTaskSequenceClassification, CamembertForMultiTaskSequenceClassification
 
 model, tokenizer = None, None
 
-def nn_init(device, model_path, returns=False):
+def nn_init(device, model_path, task, returns=False):
 	global model, tokenizer
 	tokenizer	= AutoTokenizer.from_pretrained(model_path)
-	model		= AutoModelForSequenceClassification.from_pretrained(model_path, return_dict=False)
-
+	
+	if task == "sentipolc":
+		if "xlm" in model_path:
+			model = XLMRobertaForMultiTaskSequenceClassification.from_pretrained(model_path, return_dict=False)
+		else:
+			model = CamembertForMultiTaskSequenceClassification.from_pretrained(model_path, return_dict=False)
+	else:
+		model = AutoModelForSequenceClassification.from_pretrained(model_path, return_dict=False)
+	
 	model.to(device)
 	model.eval()
 	model.zero_grad()
@@ -107,7 +114,7 @@ def get_inputs(text, device):
 	"""
 	
 	global model, tokenizer
-	ref_token_id = tokenizer.mask_token_id # tokenizer.pad_token_id # DIG MODIFICATION: mask instead pad token
+	ref_token_id = tokenizer.pad_token_id # DIG MODIFICATION ?: tokenizer.mask_token_id mask instead pad token 
 	sep_token_id = tokenizer.sep_token_id
 	cls_token_id = tokenizer.cls_token_id
 
