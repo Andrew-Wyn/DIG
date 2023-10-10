@@ -4,8 +4,8 @@ import torch
 
 # Classification Metrics
 
-def eval_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
-	logits_original						= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
+def eval_log_odds(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
+	logits_original						= forward_fn(predict, input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	predicted_label						= torch.argmax(logits_original).item()
 	prob_original						= torch.softmax(logits_original, dim=0)
 	topk_indices						= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
@@ -18,7 +18,7 @@ def eval_log_odds(forward_fn, input_embed, position_embed, type_embed, attention
 
 
 # TODO: CHECK IT !
-def eval_anti_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
+def eval_anti_log_odds(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
 	logits_original									= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	predicted_label									= torch.argmax(logits_original).item()
 	prob_original									= torch.softmax(logits_original, dim=0)
@@ -32,7 +32,7 @@ def eval_anti_log_odds(forward_fn, input_embed, position_embed, type_embed, atte
 	return (torch.log(prob_perturbed[predicted_label]) - torch.log(prob_original[predicted_label])).item(), predicted_label
 
 
-def eval_sufficiency(forward_fn, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
+def eval_sufficiency(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
 	logits_original							= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	predicted_label							= torch.argmax(logits_original).item()
 	prob_original							= torch.softmax(logits_original, dim=0)
@@ -53,7 +53,7 @@ def eval_sufficiency(forward_fn, input_embed, position_embed, type_embed, attent
 	return (prob_original[predicted_label] - prob_perturbed[predicted_label]).item()
 
 
-def eval_comprehensiveness(forward_fn, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
+def eval_comprehensiveness(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
 	logits_original					= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	predicted_label					= torch.argmax(logits_original).item()
 	prob_original					= torch.softmax(logits_original, dim=0)
@@ -72,7 +72,7 @@ def eval_comprehensiveness(forward_fn, input_embed, position_embed, type_embed, 
 
 # Regression Metrics
 
-def regression_eval_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
+def regression_eval_log_odds(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
 	logits_original						= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	topk_indices						= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
 	local_input_embed					= input_embed.detach().clone()
@@ -83,7 +83,7 @@ def regression_eval_log_odds(forward_fn, input_embed, position_embed, type_embed
 
 
 # TODO: CHECK IT !
-def regression_eval_anti_log_odds(forward_fn, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
+def regression_eval_anti_log_odds(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=20):
 	logits_original									= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	topk_indices									= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
 	complement_topk_indices							= np.setdiff1d(range(attr.shape[0]), topk_indices)
@@ -94,7 +94,7 @@ def regression_eval_anti_log_odds(forward_fn, input_embed, position_embed, type_
 	return np.abs((logits_perturbed - logits_original).item())
 
 
-def regression_eval_sufficiency(forward_fn, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
+def regression_eval_sufficiency(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
 	logits_original							= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	topk_indices							= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
 	if len(topk_indices) == 0:
@@ -112,7 +112,7 @@ def regression_eval_sufficiency(forward_fn, input_embed, position_embed, type_em
 	return np.abs((logits_perturbed - logits_original).item())
 
 
-def regression_eval_comprehensiveness(forward_fn, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
+def regression_eval_comprehensiveness(forward_fn, predict, input_embed, position_embed, type_embed, attention_mask, base_token_emb, attr, topk=20):
 	logits_original					= forward_fn(input_embed, attention_mask=attention_mask, position_embed=position_embed, type_embed=type_embed, return_all_logits=True).squeeze()
 	topk_indices					= torch.topk(attr, int(attr.shape[0] * topk / 100), sorted=False).indices
 	mask 							= torch.ones_like(input_embed[0][:,0]).bool()

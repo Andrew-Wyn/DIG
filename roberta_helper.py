@@ -33,7 +33,7 @@ def move_to_device(device):
 def predict(model, inputs_embeds, attention_mask=None):
 	return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)[0]
 
-def nn_forward_func(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+def nn_forward_func(predict, input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
 	global model
 	embeds	= input_embed + position_embed + type_embed
 	embeds	= model.roberta.embeddings.dropout(model.roberta.embeddings.LayerNorm(embeds))
