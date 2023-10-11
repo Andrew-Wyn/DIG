@@ -134,8 +134,6 @@ class CamembertForMultiTaskSequenceClassification(CamembertPreTrainedModel):
             loss=loss,
             tasks_loss=tasks_losses,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
         )
     
 class XLMRobertaForMultiTaskSequenceClassification(XLMRobertaPreTrainedModel):
@@ -202,6 +200,4 @@ class XLMRobertaForMultiTaskSequenceClassification(XLMRobertaPreTrainedModel):
             loss=loss,
             tasks_loss=tasks_losses,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
         )

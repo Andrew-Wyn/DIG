@@ -241,7 +241,7 @@ def main(args):
 	# iteration stuffs
 	count=0
 	print_step = 10
-	max_iterations = 200
+	max_iterations = 300
 
 	for i, row in tqdm(enumerate(data[:max_iterations])):
 		# augment the input with contour informations needed by DIG attribution score
