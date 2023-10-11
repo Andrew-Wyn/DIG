@@ -18,6 +18,14 @@ from attributions import run_dig_explanation
 from metrics import eval_log_odds, eval_comprehensiveness, eval_sufficiency, eval_anti_log_odds, regression_eval_log_odds, regression_eval_comprehensiveness, regression_eval_anti_log_odds, regression_eval_sufficiency
 import monotonic_paths
 
+import os, argparse
+from sklearn.neighbors import kneighbors_graph
+
+import torch
+
+from roberta_helper import nn_init, get_word_embeddings
+
+
 # ROBERTA | XLM_ROBERTA | GILBERTO(CAMEMBERT) are all roberta implementation
 from roberta_helper import nn_init, load_mappings, nn_forward_func, predict, get_mask_token_emb, get_inputs, get_tokens
 
@@ -197,6 +205,28 @@ def average_mertrics(metrics, iterations):
 	return averaged_metrics
 
 
+def knn_main(args):
+	"""
+		Compute the KNN graph for the tokens embedding space
+	"""
+
+	device = torch.device("cpu")
+
+	print('=========== KNN Computation ===========')
+
+	# Initiliaze the tokenizer
+	_, tokenizer		= nn_init(device, args.modelname, args.task, returns=True)
+
+	word_features		= get_word_embeddings().cpu().detach().numpy()
+	word_idx_map		= tokenizer.get_vocab()
+	# Compute the (weighted) graph of k-Neighbors for points in word_features -> the single token's ids.
+	adj					= kneighbors_graph(word_features, args.nbrs, mode='distance', n_jobs=args.procs)
+
+	print("=========== DONE! ===========")
+
+	return word_idx_map, word_features, adj
+
+
 def main(args):
 	# set seed
 	random.seed(args.seed)
@@ -204,7 +234,7 @@ def main(args):
 	torch.manual_seed(args.seed)
 
 	# Load the token's embeddings KNN graph
-	auxiliary_data = load_mappings(args.task, args.modeltype, args.runtype, knn_nbrs=args.knn_nbrs)
+	auxiliary_data = knn_main(args)
 
 	# Fix the gpu to use
 	device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -243,7 +273,7 @@ def main(args):
 	print_step = 10
 	max_iterations = 300
 
-	for i, row in tqdm(enumerate(data[:max_iterations])):
+	for row in tqdm(data[:max_iterations]):
 		# augment the input with contour informations needed by DIG attribution score
 		inp = get_inputs(row[0], device)
 		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
@@ -252,7 +282,8 @@ def main(args):
 		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
 											device, auxiliary_data, steps=args.steps, factor=args.factor, strategy=args.strategy)
 		
-		inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask]
+		inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, \
+											ref_position_embed, type_embed, ref_type_embed, attention_mask]
 
 		if args.task == "complexity": # call regression metrics
 			complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
@@ -267,7 +298,7 @@ def main(args):
 
 		# print the metrics
 		if count % print_step == 0:
-			print(average_mertrics(xai_metrics, i))
+			print(average_mertrics(xai_metrics, count))
 
 	print(average_mertrics(xai_metrics, count))
 
@@ -289,7 +320,7 @@ if __name__ == '__main__':
 	parser.add_argument('-steps', 		default=30, type=int)	# m
 	parser.add_argument('-topk', 		default=20, type=int)	# k
 	parser.add_argument('-factor', 		default=0, 	type=int)	# f
-	parser.add_argument('-knn_nbrs',	default=500, type=int)	# KNN
+	parser.add_argument('-knn_nbrs',	default=200, type=int)	# KNN
 	parser.add_argument('-seed', 		default=42, type=int)
 	parser.add_argument('-output_dir', 	type=str)
 
