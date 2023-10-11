@@ -222,7 +222,7 @@ def knn_main(args):
 	word_features		= get_word_embeddings().cpu().detach().numpy()
 	word_idx_map		= tokenizer.get_vocab()
 	# Compute the (weighted) graph of k-Neighbors for points in word_features -> the single token's ids.
-	adj					= kneighbors_graph(word_features, args.nbrs, mode='distance', n_jobs=args.procs)
+	adj					= kneighbors_graph(word_features, args.knn_nbrs, mode='distance', n_jobs=args.procs)
 
 	print("=========== DONE! ===========")
 
@@ -324,6 +324,7 @@ if __name__ == '__main__':
 	parser.add_argument('-factor', 		default=0, 	type=int)	# f
 	parser.add_argument('-knn_nbrs',	default=200, type=int)	# KNN
 	parser.add_argument('-seed', 		default=42, type=int)
+	parser.add_argument('-procs',	default=5, type=int)
 	parser.add_argument('-output_dir', 	type=str)
 
 	args = parser.parse_args()
