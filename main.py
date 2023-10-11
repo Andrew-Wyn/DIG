@@ -39,7 +39,7 @@ os.environ['TRANSFORMERS_CACHE'] = CACHE_DIR
 DEVICE = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens):
+def classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens):
 	# computes the attributions for given input
 
 	# move inputs to main device
@@ -50,15 +50,15 @@ def classification_calculate_attributions(inputs, device, args, attr_func, mask_
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
-	log_odd, _		= eval_log_odds(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	anti_log_odd, _ = eval_anti_log_odds(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	comp			= eval_comprehensiveness(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	suff			= eval_sufficiency(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	log_odd, _		= eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	anti_log_odd, _ = eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	comp			= eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	suff			= eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
 
 	return log_odd, anti_log_odd, comp, suff
 
 
-def regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens):
+def regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens):
 	# computes the attributions for given input
 
 	# move inputs to main device
@@ -69,10 +69,10 @@ def regression_calculate_attributions(inputs, device, args, attr_func, mask_toke
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
-	log_odd			= regression_eval_log_odds(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	anti_log_odd 	= regression_eval_anti_log_odds(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	comp			= regression_eval_comprehensiveness(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	suff			= regression_eval_sufficiency(nn_forward_func, predict, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	log_odd			= regression_eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	anti_log_odd 	= regression_eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	comp			= regression_eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	suff			= regression_eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
 
 	return log_odd, anti_log_odd, comp, suff
 
@@ -128,7 +128,7 @@ def sst2_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward
 				return nn_forward_func(predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
 		attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens)
+		log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 		
 		xai_metrics["log_odd"] += log_odd
 		xai_metrics["anti_log_odd"] += anti_log_odd
@@ -143,7 +143,7 @@ def complexity_binary_calculate_attributions(inputs, device, args, mask_token_em
 	attr_func = DiscretetizedIntegratedGradients(ff)
 
 	
-	log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens)
+	log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 		
 	xai_metrics["log_odd"] += log_odd
 	xai_metrics["anti_log_odd"] += anti_log_odd
@@ -157,7 +157,7 @@ def complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_f
 				return nn_forward_func(predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
 		attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd, anti_log_odd, comp, suff = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, predict, get_tokens)
+		log_odd, anti_log_odd, comp, suff = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 		
 		xai_metrics["reg_log_odd"] += log_odd
 		xai_metrics["reg_anti_log_odd"] += anti_log_odd
@@ -166,6 +166,7 @@ def complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_f
 	
 def sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 		
+		# Define the predict function for pos sentipolc task
 		def pos_predict(model, inputs_embeds, attention_mask=None):
 			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["pos"]
 
@@ -176,6 +177,7 @@ def sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_for
 
 		log_odd_pos, anti_log_odd_pos, comp_pos, suff_pos = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, pos_predict, get_tokens)
 
+		# Define the predict function for neg sentipolc task
 		def neg_predict(model, inputs_embeds, attention_mask=None):
 			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["neg"]
 		
