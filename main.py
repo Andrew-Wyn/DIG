@@ -269,13 +269,13 @@ def main(args):
 		if count % print_step == 0:
 			print(average_mertrics(xai_metrics, i))
 
-	print(average_mertrics(xai_metrics, max_iterations))
+	print(average_mertrics(xai_metrics, count))
 
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
 
 	with open(f"{args.output_dir}/xai_metrics.json", 'w') as f:
-		json.dump(average_mertrics(xai_metrics, max_iterations), f)
+		json.dump(average_mertrics(xai_metrics, count), f)
 
 
 if __name__ == '__main__':
