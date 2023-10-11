@@ -23,7 +23,7 @@ def main(args):
 	print(f'Starting KNN computation...')
 
 	# Initiliaze the tokenizer
-	_, tokenizer		= nn_init(device, args.modelname, returns=True)
+	_, tokenizer		= nn_init(device, args.modelname, args.finetuningtype, returns=True)
 
 	word_features		= get_word_embeddings().cpu().detach().numpy()
 	word_idx_map		= tokenizer.get_vocab()
@@ -44,8 +44,8 @@ if __name__ == '__main__':
 	parser.add_argument('-modeltype', default="roberta", type=str)
 	parser.add_argument('-finetuningtype', default='comp_en', type=str)
 	parser.add_argument('-runname', default='p_nf', type=str) # not-pretrained-not-finetuntuned | not-pretrained-finetuned ...
-	parser.add_argument('-procs',	default=12, type=int)
-	parser.add_argument('-nbrs',  	default=500, type=int)
+	parser.add_argument('-procs',	default=5, type=int)
+	parser.add_argument('-nbrs',  	default=200, type=int)
 
 	args = parser.parse_args()
 
