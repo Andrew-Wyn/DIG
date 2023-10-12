@@ -175,7 +175,7 @@ def sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_for
 				return nn_forward_func(pos_predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
 		attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd_pos, anti_log_odd_pos, comp_pos, suff_pos = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, pos_predict, get_tokens)
+		log_odd_pos, anti_log_odd_pos, comp_pos, suff_pos = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 
 		# Define the predict function for neg sentipolc task
 		def neg_predict(model, inputs_embeds, attention_mask=None):
@@ -186,7 +186,7 @@ def sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_for
 				return nn_forward_func(neg_predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
 		attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd_neg, anti_log_odd_neg, comp_neg, suff_neg = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, nn_forward_func, neg_predict, get_tokens)
+		log_odd_neg, anti_log_odd_neg, comp_neg, suff_neg = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 		
 		xai_metrics["log_odd_pos"] += log_odd_pos
 		xai_metrics["anti_log_odd_pos"] += anti_log_odd_pos
