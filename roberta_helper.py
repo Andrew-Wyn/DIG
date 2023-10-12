@@ -10,10 +10,10 @@ def nn_init(device, model_path, task, returns=False):
 	
 	if task == "sentipolc":
 		if "xlm" in model_path:
-			tokenizer	= AutoTokenizer.from_pretrained("idb-ita/gilberto-uncased-from-camembert")
+			tokenizer	= AutoTokenizer.from_pretrained("xlm-roberta-base")
 			model = XLMRobertaForMultiTaskSequenceClassification.from_pretrained(model_path, return_dict=False)
 		else:
-			tokenizer	= AutoTokenizer.from_pretrained("xlm-roberta-base")
+			tokenizer	= AutoTokenizer.from_pretrained("idb-ita/gilberto-uncased-from-camembert")
 			model = CamembertForMultiTaskSequenceClassification.from_pretrained(model_path, return_dict=False)
 	else:
 		tokenizer	= AutoTokenizer.from_pretrained(model_path)
