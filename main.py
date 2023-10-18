@@ -50,10 +50,10 @@ def classification_calculate_attributions(inputs, device, args, attr_func, mask_
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
-	log_odd, _		= eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	anti_log_odd, _ = eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	comp			= eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	suff			= eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	log_odd, _		= eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
+	anti_log_odd, _ = eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
+	comp			= 0 #eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
+	suff			= 0 #eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
 
 	return log_odd, anti_log_odd, comp, suff
 
@@ -69,10 +69,10 @@ def regression_calculate_attributions(inputs, device, args, attr_func, mask_toke
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
-	log_odd			= regression_eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	anti_log_odd 	= regression_eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	comp			= regression_eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
-	suff			= regression_eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk)
+	log_odd			= regression_eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
+	anti_log_odd 	= regression_eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
+	comp			= 0 #regression_eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
+	suff			= 0 #regression_eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
 
 	return log_odd, anti_log_odd, comp, suff
 
@@ -320,7 +320,8 @@ if __name__ == '__main__':
 	parser.add_argument('-dataset', 	default=None, type=str) # dataset used, if None SST2 will be used
 	parser.add_argument('-strategy', 	default='greedy', choices=['greedy', 'maxcount'], help='The algorithm to find the next anchor point')
 	parser.add_argument('-steps', 		default=30, type=int)	# m
-	parser.add_argument('-topk', 		default=20, type=int)	# k
+	parser.add_argument('-topk_1', 		default=10, type=int)	# k
+	parser.add_argument('-topk_2', 		default=40, type=int)	# k
 	parser.add_argument('-factor', 		default=0, 	type=int)	# f
 	parser.add_argument('-knn_nbrs',	default=200, type=int)	# KNN
 	parser.add_argument('-seed', 		default=42, type=int)
