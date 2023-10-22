@@ -321,7 +321,7 @@ if __name__ == '__main__':
 	parser.add_argument('-strategy', 	default='greedy', choices=['greedy', 'maxcount'], help='The algorithm to find the next anchor point')
 	parser.add_argument('-steps', 		default=30, type=int)	# m
 	parser.add_argument('-topk_1', 		default=10, type=int)	# k
-	parser.add_argument('-topk_2', 		default=40, type=int)	# k
+	parser.add_argument('-topk_2', 		default=50, type=int)	# k
 	parser.add_argument('-factor', 		default=0, 	type=int)	# f
 	parser.add_argument('-knn_nbrs',	default=200, type=int)	# KNN
 	parser.add_argument('-seed', 		default=42, type=int)
