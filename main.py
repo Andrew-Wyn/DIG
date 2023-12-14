@@ -1,5 +1,6 @@
 import os
 import json
+import csv
 import sys, numpy as np, argparse, random
 sys.path.append('../')
 from random import shuffle
@@ -15,7 +16,7 @@ from datasets import load_dataset
 from datasets import Dataset
 from dig import DiscretetizedIntegratedGradients
 from attributions import run_dig_explanation
-from metrics import eval_log_odds, eval_comprehensiveness, eval_sufficiency, eval_anti_log_odds, regression_eval_log_odds, regression_eval_comprehensiveness, regression_eval_anti_log_odds, regression_eval_sufficiency
+from metrics import eval_log_odds, eval_anti_log_odds, regression_eval_log_odds, regression_eval_anti_log_odds
 import monotonic_paths
 
 import os, argparse
@@ -50,12 +51,10 @@ def classification_calculate_attributions(inputs, device, args, attr_func, mask_
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
-	log_odd, _		= eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
-	anti_log_odd, _ = eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
-	comp			= 0 #eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
-	suff			= 0 #eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
+	log_odd, lo_p, lo_p_p		= eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
+	anti_log_odd, alo_p, alo_p_p = eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
 
-	return log_odd, anti_log_odd, comp, suff
+	return (log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p)
 
 
 def regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens):
@@ -69,12 +68,10 @@ def regression_calculate_attributions(inputs, device, args, attr_func, mask_toke
 	attr = run_dig_explanation(attr_func, scaled_features, position_embed, type_embed, attention_mask, (2**args.factor)*(args.steps+1)+1)
 
 	# compute metrics
-	log_odd			= regression_eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
-	anti_log_odd 	= regression_eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
-	comp			= 0 #regression_eval_comprehensiveness(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
-	suff			= 0 #regression_eval_sufficiency(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
+	log_odd, lo_p, lo_p_p			= regression_eval_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_1)
+	anti_log_odd, alo_p, alo_p_p 	= regression_eval_anti_log_odds(ff, input_embed, position_embed, type_embed, attention_mask, mask_token_emb, attr, topk=args.topk_2)
 
-	return log_odd, anti_log_odd, comp, suff
+	return (log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p)
 
 
 def read_complexity_dataset(path=None):
@@ -123,17 +120,17 @@ def create_dataset_from_faulty_csv(src_path):
 
 
 def sst2_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
-		# Define the Attribution function
-		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
-				return nn_forward_func(predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
-		attr_func = DiscretetizedIntegratedGradients(ff)
+	# Define the Attribution function
+	def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+			return nn_forward_func(predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
+	attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
-		
-		xai_metrics["log_odd"] += log_odd
-		xai_metrics["anti_log_odd"] += anti_log_odd
-		xai_metrics["comp"] += comp
-		xai_metrics["suff"] += suff
+	(log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p) = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
+	
+	xai_metrics["log_odd"] += log_odd
+	xai_metrics["anti_log_odd"] += anti_log_odd
+
+	return (log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p)
 
 
 def complexity_binary_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
@@ -143,59 +140,58 @@ def complexity_binary_calculate_attributions(inputs, device, args, mask_token_em
 	attr_func = DiscretetizedIntegratedGradients(ff)
 
 	
-	log_odd, anti_log_odd, comp, suff = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
+	(log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p) = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 		
 	xai_metrics["log_odd"] += log_odd
 	xai_metrics["anti_log_odd"] += anti_log_odd
-	xai_metrics["comp"] += comp
-	xai_metrics["suff"] += suff
+
+	return (log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p)
 
 
 def complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
-		# Define the Attribution function
-		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
-				return nn_forward_func(predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
-		attr_func = DiscretetizedIntegratedGradients(ff)
+	# Define the Attribution function
+	def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+			return nn_forward_func(predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
+	attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd, anti_log_odd, comp, suff = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
-		
-		xai_metrics["reg_log_odd"] += log_odd
-		xai_metrics["reg_anti_log_odd"] += anti_log_odd
-		xai_metrics["reg_comp"] += comp
-		xai_metrics["reg_suff"] += suff
+	(log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p) = regression_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
+	
+	xai_metrics["reg_log_odd"] += log_odd
+	xai_metrics["reg_anti_log_odd"] += anti_log_odd
+
+	return (log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p)
+
 	
 def sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics):
 		
-		# Define the predict function for pos sentipolc task
-		def pos_predict(model, inputs_embeds, attention_mask=None):
-			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["pos"]
+	# Define the predict function for pos sentipolc task
+	def pos_predict(model, inputs_embeds, attention_mask=None):
+		return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["pos"]
 
-		# Define the Attribution function
-		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
-				return nn_forward_func(pos_predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
-		attr_func = DiscretetizedIntegratedGradients(ff)
+	# Define the Attribution function
+	def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+			return nn_forward_func(pos_predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
+	attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd_pos, anti_log_odd_pos, comp_pos, suff_pos = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
+	(log_odd_pos, lo_p_pos, lo_p_p_pos), (anti_log_odd_pos, alo_p_pos, alo_p_p_pos) = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
 
-		# Define the predict function for neg sentipolc task
-		def neg_predict(model, inputs_embeds, attention_mask=None):
-			return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["neg"]
-		
-		# Define the Attribution function
-		def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
-				return nn_forward_func(neg_predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
-		attr_func = DiscretetizedIntegratedGradients(ff)
+	# Define the predict function for neg sentipolc task
+	def neg_predict(model, inputs_embeds, attention_mask=None):
+		return model(inputs_embeds=inputs_embeds, attention_mask=attention_mask)["logits"]["neg"]
+	
+	# Define the Attribution function
+	def ff(input_embed, attention_mask=None, position_embed=None, type_embed=None, return_all_logits=False):
+			return nn_forward_func(neg_predict, input_embed, attention_mask, position_embed, type_embed, return_all_logits)
+	attr_func = DiscretetizedIntegratedGradients(ff)
 
-		log_odd_neg, anti_log_odd_neg, comp_neg, suff_neg = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
-		
-		xai_metrics["log_odd_pos"] += log_odd_pos
-		xai_metrics["anti_log_odd_pos"] += anti_log_odd_pos
-		xai_metrics["comp_pos"] += comp_pos
-		xai_metrics["suff_pos"] += suff_pos
-		xai_metrics["log_odd_neg"] += log_odd_neg
-		xai_metrics["anti_log_odd_neg"] += anti_log_odd_neg
-		xai_metrics["comp_neg"] += comp_neg
-		xai_metrics["suff_neg"] += suff_neg
+	(log_odd_neg, lo_p_neg, lo_p_p_neg), (anti_log_odd_neg, alo_p_neg, alo_p_p_neg) = classification_calculate_attributions(inputs, device, args, attr_func, mask_token_emb, ff, get_tokens)
+	
+	xai_metrics["log_odd_pos"] += log_odd_pos
+	xai_metrics["anti_log_odd_pos"] += anti_log_odd_pos
+	xai_metrics["log_odd_neg"] += log_odd_neg
+	xai_metrics["anti_log_odd_neg"] += anti_log_odd_neg
+
+	return (log_odd_pos, lo_p_pos, lo_p_p_pos), (anti_log_odd_pos, alo_p_pos, alo_p_p_pos), (log_odd_neg, lo_p_neg, lo_p_p_neg), (anti_log_odd_neg, alo_p_neg, alo_p_p_neg)
 
 
 def average_mertrics(metrics, iterations):
@@ -273,39 +269,56 @@ def main(args):
 	# iteration stuffs
 	count=0
 	print_step = 10
-	max_iterations = 300
-
-	for row in tqdm(data[:max_iterations]):
-		# augment the input with contour informations needed by DIG attribution score
-		inp = get_inputs(row[0], device)
-		input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
-
-		# generates the paths required by DIG
-		scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
-											device, auxiliary_data, steps=args.steps, factor=args.factor, strategy=args.strategy)
-		
-		inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, \
-											ref_position_embed, type_embed, ref_type_embed, attention_mask]
-
-		if args.task == "complexity": # call regression metrics
-			complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
-		elif args.task == "complexity_binary": # call classification metrics
-			complexity_binary_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
-		elif args.task == "sst2": # call classification metrics
-			sst2_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
-		elif args.task == "sentipolc": # call classification metrics twice one for each sub-task
-			sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
-
-		count += 1
-
-		# print the metrics
-		if count % print_step == 0:
-			print(average_mertrics(xai_metrics, count))
-
-	print(average_mertrics(xai_metrics, count))
+	max_iterations = 100
 
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
+
+	with open(f"{args.output_dir}/sentences.csv", 'w') as csv_file:
+		writer = csv.writer(csv_file, delimiter=',') # init the csv writer object
+
+		# write header
+		if args.task == "sentipolc":
+			writer.writerow(["sentence", "pos log_odd", "pos log_odd prob", "pos log_odd prob perturbed", "pos anti log_odd", "pos anti log_odd prob", "pos anti log_odd prob perturbed", "neg log_odd", "neg log_odd prob", "neg log_odd prob perturbed", "neg anti log_odd", "neg anti log_odd prob", "neg anti log_odd prob perturbed"])
+		else:
+			writer.writerow(["sentence", "log_odd", "log_odd prob", "log_odd prob perturbed", "anti log_odd", "anti log_odd prob", "anti log_odd prob perturbed"])
+
+		for row in tqdm(data[:max_iterations]):
+			# augment the input with contour informations needed by DIG attribution score
+			inp = get_inputs(row[0], device)
+			input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, ref_position_embed, type_embed, ref_type_embed, attention_mask = inp
+
+			# generates the paths required by DIG
+			scaled_features 		= monotonic_paths.scale_inputs(input_ids.squeeze().tolist(), ref_input_ids.squeeze().tolist(),\
+												device, auxiliary_data, steps=args.steps, factor=args.factor, strategy=args.strategy)
+			
+			inputs					= [scaled_features, input_ids, ref_input_ids, input_embed, ref_input_embed, position_embed, \
+												ref_position_embed, type_embed, ref_type_embed, attention_mask]
+
+			if args.task == "complexity": # call regression metrics
+				(log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p) = complexity_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+				# write the sentence's metrics and probs over the csv file
+				writer.writerow([row[0], str(log_odd), str(lo_p), str(lo_p_p), str(anti_log_odd), str(alo_p), str(alo_p_p)])
+			elif args.task == "complexity_binary": # call classification metrics
+				(log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p) = complexity_binary_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+				# write the sentence's metrics and probs over the csv file
+				writer.writerow([row[0], str(log_odd), str(lo_p), str(lo_p_p), str(anti_log_odd), str(alo_p), str(alo_p_p)])
+			elif args.task == "sst2": # call classification metrics
+				(log_odd, lo_p, lo_p_p), (anti_log_odd, alo_p, alo_p_p) = sst2_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+				# write the sentence's metrics and probs over the csv file
+				writer.writerow([row[0], str(log_odd), str(lo_p), str(lo_p_p), str(anti_log_odd), str(alo_p), str(alo_p_p)])
+			elif args.task == "sentipolc": # call classification metrics twice one for each sub-task
+				(log_odd_pos, lo_p_pos, lo_p_p_pos), (anti_log_odd_pos, alo_p_pos, alo_p_p_pos), (log_odd_neg, lo_p_neg, lo_p_p_neg), (anti_log_odd_neg, alo_p_neg, alo_p_p_neg) = sentpolc_calculate_attributions(inputs, device, args, mask_token_emb, nn_forward_func, get_tokens, xai_metrics)
+				# write the sentence's metrics and probs over the csv file
+				writer.writerow([row[0], str(log_odd_pos), str(lo_p_pos), str(lo_p_p_pos), str(anti_log_odd_pos), str(alo_p_pos), str(alo_p_p_pos), str(log_odd_neg), str(lo_p_neg), str(lo_p_p_neg), str(anti_log_odd_neg), str(alo_p_neg), str(alo_p_p_neg)])
+
+			count += 1
+
+			# print the metrics
+			if count % print_step == 0:
+				print(average_mertrics(xai_metrics, count))
+
+	print(average_mertrics(xai_metrics, count))
 
 	with open(f"{args.output_dir}/xai_metrics.json", 'w') as f:
 		json.dump(average_mertrics(xai_metrics, count), f)
